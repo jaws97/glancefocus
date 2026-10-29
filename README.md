@@ -40,6 +40,10 @@ Copy this folder to the Mac, open Terminal in it, and run:
 bash build.sh install
 ```
 
+It shows each step with a spinner and a timer (about a minute the first time), then prints the
+app's size and the command to open it. If something fails, it prints the error output; copy that
+when asking for help.
+
 That builds `build/GlanceFocus.app`, signs it for your Mac, and copies it to `/Applications`.
 If your account can't write there, as on many work Macs, it goes to `~/Applications` instead. The
 last line of the output says which. Then open it, using that folder:
@@ -57,8 +61,10 @@ An eye icon appears in the menu bar.
 ### First launch
 
 1. **Camera:** click Allow when macOS asks.
-2. **Calibration** starts on its own. Look at the dot on each screen, turning your head the way
-   you normally would. It takes about 3 seconds per screen. Press Esc to cancel.
+2. **Calibration** starts on its own. Look at the pulsing dot on each screen, turning your head
+   the way you normally would. Once the dot stops pulsing, hold still while the ring fills. It
+   takes about 3 seconds per screen and ends with a green check. Press Esc to cancel.
+   The menu bar eye pulses while the camera starts up.
 3. **Accessibility:** macOS asks you to allow GlanceFocus under System Settings › Privacy &
    Security › Accessibility. This permission is what lets it bring a window forward and give it
    keyboard focus. Without it, only the pointer moves.

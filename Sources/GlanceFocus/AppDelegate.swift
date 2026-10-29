@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var screenLocked = false
     private var userIdle = false
     private var askedForAccessibility = false
+    private var iconPulse: Timer?
+    private var iconPulseStart = CFAbsoluteTimeGetCurrent()
 
     /// Turn the camera off after this long without keyboard or mouse input.
     private let idleTimeout: TimeInterval = 5 * 60
@@ -76,17 +78,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateTracking() {
+        let wasRunning = tracker.isRunning
         if shouldTrack {
             tracker.start(cameraID: Settings.cameraID)
         } else {
             tracker.stop()
             engine.reset()
         }
+        if tracker.isRunning && !wasRunning { startIconPulse() }
+        if !tracker.isRunning { stopIconPulse() }
         updateIcon()
+    }
+
+    /// While the camera warms up, the menu bar eye gently pulses until the first frame arrives.
+    private func startIconPulse() {
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+        iconPulse?.invalidate()
+        iconPulseStart = CFAbsoluteTimeGetCurrent()
+        iconPulse = Timer.scheduledTimer(timeInterval: 1.0 / 20, target: self, selector: #selector(pulseIcon), userInfo: nil, repeats: true)
+    }
+
+    private func stopIconPulse() {
+        iconPulse?.invalidate()
+        iconPulse = nil
+        statusItem.button?.alphaValue = 1
+    }
+
+    @objc private func pulseIcon() {
+        let elapsed = CFAbsoluteTimeGetCurrent() - iconPulseStart
+        statusItem.button?.alphaValue = CGFloat(0.6 + 0.4 * cos(elapsed * 2 * .pi / 1.2))
     }
 
     private func handle(_ pose: HeadPose?) {
         guard tracker.isRunning else { return }
+        if iconPulse != nil { stopIconPulse() } // the camera is up
         if let calibrator {
             calibrator.add(pose)
         } else if let calibration {

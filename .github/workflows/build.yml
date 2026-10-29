@@ -17,8 +17,15 @@ jobs:
           sw_vers
           swift --version
 
+      # /bin/bash is the bash 3.2 that ships with macOS, which is what most people run build.sh with.
       - name: Build GlanceFocus.app
-        run: bash build.sh
+        run: /bin/bash build.sh
+
+      # Again under a pseudo-terminal, so the animated progress display is exercised too.
+      - name: Installer animation smoke test
+        run: |
+          script -q /dev/null /bin/bash build.sh
+          test -x build/GlanceFocus.app/Contents/MacOS/GlanceFocus
 
       - name: Check signature and size
         run: |
