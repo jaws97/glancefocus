@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import Carbon.HIToolbox
 import ServiceManagement
 
 /// The menu bar item, plus the rules for when the camera is allowed to run.
@@ -11,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let tracker = HeadTracker()
     private let engine = FocusEngine()
+    private let flash = FocusFlash()
+    private var pauseHotkey: Hotkey?
     private var calibration = Calibration.load()
     private var calibrator: CalibrationController?
     private var displays: [Display] = []
@@ -33,6 +36,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         tracker.onPose = { [weak self] pose in self?.handle(pose) }
         engine.onGazeChange = { [weak self] in self?.updateIcon() }
+        engine.onSwitch = { [weak self] display in
+            if Settings.flashOnSwitch { self?.flash.show(on: display) }
+        }
+        // ⌃⌥⌘G pauses and resumes from anywhere.
+        pauseHotkey = Hotkey(keyCode: kVK_ANSI_G, modifiers: controlKey | optionKey | cmdKey) { [weak self] in
+            self?.toggleEnabled()
+        }
 
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -82,6 +92,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if let calibration {
             engine.process(pose, calibration: calibration, displays: displays)
         }
+        if Settings.showHeadAngles { showReadout(pose) }
+    }
+
+    /// Debug readout next to the menu bar icon: "turn°, tilt° → screen number".
+    private func showReadout(_ pose: HeadPose?) {
+        guard let pose else {
+            statusItem.button?.title = " no face"
+            return
+        }
+        let screen = calibrator == nil ? engine.looking.flatMap { displays.firstIndex(of: $0) } : nil
+        let target = screen.map { " → \($0 + 1)" } ?? ""
+        statusItem.button?.title = " \(degrees(pose.yaw))°, \(degrees(pose.pitch))°\(target)"
+    }
+
+    private func degrees(_ radians: Double) -> Int {
+        Int((radians * 180 / .pi).rounded())
     }
 
     @objc private func calibrate() {
@@ -169,9 +195,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        statusItem.button?.image = NSImage(systemSymbolName: tracker.isRunning ? "eye" : "eye.slash",
-                                           accessibilityDescription: "GlanceFocus")
-        statusItem.button?.toolTip = "GlanceFocus: \(statusText)"
+        guard let button = statusItem.button else { return }
+        button.image = NSImage(systemSymbolName: tracker.isRunning ? "eye" : "eye.slash",
+                               accessibilityDescription: "GlanceFocus")
+        button.toolTip = "GlanceFocus: \(statusText)"
+
+        let readout = Settings.showHeadAngles && tracker.isRunning
+        statusItem.length = readout ? NSStatusItem.variableLength : NSStatusItem.squareLength
+        button.imagePosition = readout ? .imageLeft : .imageOnly
+        button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        if !readout { button.title = "" }
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -189,7 +222,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        menu.addItem(item("Follow My Gaze", #selector(toggleEnabled), checked: Settings.enabled))
+        let follow = item("Follow My Gaze", #selector(toggleEnabled), checked: Settings.enabled, key: "g")
+        follow.keyEquivalentModifierMask = [.control, .option, .command]
+        menu.addItem(follow)
         let calibrateItem = item("Calibrate…", #selector(calibrate))
         calibrateItem.isEnabled = displays.count > 1 && calibrator == nil
         menu.addItem(calibrateItem)
@@ -216,7 +251,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(item("Move Pointer With Focus", #selector(toggleMovePointer), checked: Settings.movePointer))
+        menu.addItem(item("Flash Screen on Switch", #selector(toggleFlash), checked: Settings.flashOnSwitch))
         menu.addItem(item("Launch at Login", #selector(toggleLaunchAtLogin), checked: SMAppService.mainApp.status == .enabled))
+        menu.addItem(.separator())
+
+        menu.addItem(item("Show Head Angles", #selector(toggleHeadAngles), checked: Settings.showHeadAngles))
+        if Settings.showHeadAngles {
+            menu.addItem(label("Menu bar shows: turn°, tilt° → screen"))
+            if let calibration {
+                for (index, display) in displays.enumerated() {
+                    let angles = calibration.centers[display.key].map { "\(degrees($0.yaw))°, \(degrees($0.pitch))°" } ?? "not calibrated"
+                    let hidden = display.key == calibration.faceLostDisplay ? " (face out of view)" : ""
+                    menu.addItem(label("\(index + 1). \(display.name): \(angles)\(hidden)"))
+                }
+            }
+        }
         menu.addItem(.separator())
         menu.addItem(label("Video is analysed on this Mac and never saved"))
         menu.addItem(item("Quit GlanceFocus", #selector(quit), key: "q"))
@@ -263,6 +312,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleMovePointer() { Settings.movePointer.toggle() }
+    @objc private func toggleFlash() { Settings.flashOnSwitch.toggle() }
+
+    @objc private func toggleHeadAngles() {
+        Settings.showHeadAngles.toggle()
+        updateIcon()
+    }
 
     @objc private func toggleLaunchAtLogin() {
         let service = SMAppService.mainApp

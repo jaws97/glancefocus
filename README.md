@@ -16,8 +16,10 @@ you're looking at.
   one display (for example a monitor far to the side), it learns that too: losing your face means
   "that display".
 - **Switching.** Once you've looked at a display for the switch delay (0.4 s by default), the
-  frontmost window on it is brought forward and gets keyboard focus. The pointer moves there too,
-  back to where you last left it on that screen. You can turn that off.
+  frontmost window on it is brought forward and gets keyboard focus. The edge of that screen
+  glows briefly so you can see the switch happened. The pointer moves there too, back to where
+  you last left it on that screen. You can turn both off.
+- **Pause from anywhere** with **⌃⌥⌘G** (Control-Option-Command-G). Press it again to resume.
 - **It stays out of your way.** If you're still typing as you turn your head, the switch is
   skipped, so you can glance at the other screen without losing your place. If you click
   something after turning, it leaves focus where you clicked. It also waits until you let go of
@@ -61,12 +63,26 @@ An eye icon appears in the menu bar.
 | Item | What it does |
 | --- | --- |
 | Status line | What it's doing now, e.g. "Looking at DELL U2720Q" |
-| Follow My Gaze | Turns switching on or off. When off, the camera is off. |
+| Follow My Gaze (⌃⌥⌘G) | Turns switching on or off. When off, the camera is off. The shortcut works from any app. |
 | Calibrate… | Run calibration again. Do this after rearranging your desk or monitors. |
 | Switch Delay | How long you need to look at a screen before it takes focus |
 | Camera | Shown only if you have more than one camera, e.g. a webcam on your monitor |
 | Move Pointer With Focus | Moves the pointer to the screen that just got focus |
+| Flash Screen on Switch | Briefly lights up the edge of the screen that just got focus |
 | Launch at Login | Starts GlanceFocus when you log in |
+| Show Head Angles | For testing: shows your live head angles next to the menu bar icon, plus the angles calibration saved for each screen (see below) |
+
+### Reading the head angles
+
+With Show Head Angles on, the menu bar shows something like `12°, -3° → 2`:
+
+- **12°** is how far your head is turned left or right.
+- **-3°** is how far it's tilted up or down.
+- **→ 2** is the screen it thinks you're facing. Screens are numbered as in the menu and in calibration.
+- **no face** means the camera can't see your face in that frame.
+
+The menu lists the angles saved for each screen during calibration. If the live numbers while
+you look at a screen are far from that screen's saved numbers, calibrate again.
 
 ## Privacy
 
@@ -77,7 +93,8 @@ An eye icon appears in the menu bar.
   (the average head angle). They live in `~/Library/Preferences/local.glancefocus.plist`.
 - **Keyboard:** the app asks macOS how many seconds it has been since the last key press, so it
   doesn't switch while you're typing. It never sees which keys you press and doesn't install a
-  key logger or event tap.
+  key logger or event tap. The ⌃⌥⌘G shortcut uses the standard hot key system, which tells the
+  app only when that exact combination is pressed.
 - **The camera turns off** when you pause it, when only one display is connected, when the screen
   is locked or asleep, and after 5 minutes without keyboard or mouse activity. It turns back on
   when you return. The green camera light is on whenever it's running. macOS always shows it, and
@@ -92,9 +109,9 @@ An eye icon appears in the menu bar.
 
 ## Troubleshooting
 
-- **It focuses the wrong screen.** Calibrate again and turn your head, not just your eyes, toward
-  each dot. Good lighting on your face helps. If your screens are close together, try a longer
-  Switch Delay.
+- **It focuses the wrong screen.** Turn on Show Head Angles and compare the live numbers with the
+  saved ones in the menu. Calibrate again and turn your head, not just your eyes, toward each dot.
+  Good lighting on your face helps. If your screens are close together, try a longer Switch Delay.
 - **The lid is closed (clamshell mode).** The built-in camera is off then. Plug in a webcam and
   choose it under Camera. Choosing a camera starts a new calibration.
 - **Focus stopped working after rebuilding.** Each build gets a new signature, so macOS forgets
@@ -131,5 +148,7 @@ defaults delete local.glancefocus
 | `Sources/GlanceFocus/CalibrationController.swift` | The full-screen calibration dots |
 | `Sources/GlanceFocus/FocusEngine.swift` | Smoothing, switch delay, and the typing/clicking rules |
 | `Sources/GlanceFocus/FocusSwitcher.swift` | Brings a window forward and moves the pointer (Accessibility API) |
+| `Sources/GlanceFocus/FocusFlash.swift` | The glow around a screen when it gets focus |
+| `Sources/GlanceFocus/Hotkey.swift` | The ⌃⌥⌘G pause shortcut |
 | `Sources/GlanceFocus/AppDelegate.swift` | Menu bar UI and when the camera runs |
 | `build.sh` | Builds and signs `GlanceFocus.app` |

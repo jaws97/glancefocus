@@ -22,6 +22,18 @@ enum Settings {
         set { store.set(newValue, forKey: "movePointer") }
     }
 
+    /// Whether the newly focused display briefly glows.
+    static var flashOnSwitch: Bool {
+        get { store.object(forKey: "flashOnSwitch") as? Bool ?? true }
+        set { store.set(newValue, forKey: "flashOnSwitch") }
+    }
+
+    /// Debug aid: live head angles in the menu bar and calibrated angles in the menu.
+    static var showHeadAngles: Bool {
+        get { store.object(forKey: "showHeadAngles") as? Bool ?? false }
+        set { store.set(newValue, forKey: "showHeadAngles") }
+    }
+
     /// The camera picked in the menu; nil means the built-in camera.
     static var cameraID: String? {
         get { store.string(forKey: "cameraID") }

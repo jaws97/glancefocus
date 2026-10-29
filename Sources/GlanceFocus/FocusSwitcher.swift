@@ -12,11 +12,12 @@ enum FocusSwitcher {
     }
 
     /// Focuses the frontmost window on `display`, unless keyboard focus is already on it.
-    static func focus(_ display: Display) {
-        guard isTrusted else { return }
-        if let focused = focusedWindowFrame(), display.bounds.contains(focused.center) { return }
-        guard let target = frontmostWindow(on: display) else { return }
-        raise(pid: target.pid, frame: target.frame, on: display)
+    /// Returns true when focus moved.
+    static func focus(_ display: Display) -> Bool {
+        guard isTrusted else { return false }
+        if let focused = focusedWindowFrame(), display.bounds.contains(focused.center) { return false }
+        guard let target = frontmostWindow(on: display) else { return false }
+        return raise(pid: target.pid, frame: target.frame, on: display)
     }
 
     /// Where the pointer last was on each display, so it returns there instead of jumping to the
@@ -56,17 +57,17 @@ enum FocusSwitcher {
         return nil
     }
 
-    private static func raise(pid: pid_t, frame: CGRect, on display: Display) {
+    private static func raise(pid: pid_t, frame: CGRect, on display: Display) -> Bool {
         let app = appElement(pid)
-        guard let windows: [AXUIElement] = app.value(of: kAXWindowsAttribute) else { return }
+        guard let windows: [AXUIElement] = app.value(of: kAXWindowsAttribute) else { return false }
         let candidates = windows.filter { $0.value(of: kAXMinimizedAttribute) != true }
         let match = candidates.first { $0.frame?.isClose(to: frame) == true }
             ?? candidates.first { $0.frame.map { display.bounds.contains($0.center) } == true }
-        guard let window = match else { return }
+        guard let window = match else { return false }
 
         _ = AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
         _ = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-        _ = AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        return AXUIElementSetAttributeValue(app, kAXFrontmostAttribute as CFString, kCFBooleanTrue) == .success
     }
 
     private static func appElement(_ pid: pid_t) -> AXUIElement {

@@ -8,9 +8,14 @@ import AppKit
 @MainActor
 final class FocusEngine {
     var onGazeChange: (() -> Void)?
+    /// Called after keyboard focus has moved to a display.
+    var onSwitch: ((Display) -> Void)?
+    /// The display the user is settled on (after the switch delay).
     private(set) var gaze: Display? {
         didSet { if gaze != oldValue { onGazeChange?() } }
     }
+    /// The display the latest frame points at, before the switch delay; nil when unsure.
+    private(set) var looking: Display?
 
     /// A key press this recent when the head turns counts as "still typing".
     private let typingGap = 0.4
@@ -25,12 +30,14 @@ final class FocusEngine {
         faceLostSince = nil
         candidate = nil
         pendingSwitch = nil
+        looking = nil
         gaze = nil
     }
 
     func process(_ pose: HeadPose?, calibration: Calibration, displays: [Display]) {
         let now = CFAbsoluteTimeGetCurrent()
-        if let looked = classify(pose, calibration: calibration, displays: displays, now: now) {
+        looking = classify(pose, calibration: calibration, displays: displays, now: now)
+        if let looked = looking {
             if candidate?.display != looked {
                 candidate = (looked, now, InputActivity.sinceKeyPress < typingGap)
             }
@@ -79,7 +86,7 @@ final class FocusEngine {
         }
         guard NSEvent.pressedMouseButtons == 0 else { return } // wait for a drag to finish
         pendingSwitch = nil
-        FocusSwitcher.focus(request.display)
+        if FocusSwitcher.focus(request.display) { onSwitch?(request.display) }
         // Leave the pointer alone if the user is already moving it themselves.
         if Settings.movePointer && InputActivity.sinceMouseMove >= elapsed {
             FocusSwitcher.movePointer(to: request.display, displays: displays)
