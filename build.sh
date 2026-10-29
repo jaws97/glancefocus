@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds build/GlanceFocus.app. Run `bash build.sh install` to also copy it to /Applications.
+# Builds build/GlanceFocus.app. Run `bash build.sh install` to also copy it to /Applications,
+# or to ~/Applications when this account can't write to /Applications (common on work Macs).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -19,8 +20,11 @@ codesign --force --options runtime --entitlements Resources/GlanceFocus.entitlem
 echo "Built $APP"
 
 if [[ "${1:-}" == "install" ]]; then
+  DEST="/Applications"
+  [[ -w "$DEST" ]] || DEST="$HOME/Applications"
+  mkdir -p "$DEST"
   pkill -x "$APP_NAME" 2>/dev/null || true
-  rm -rf "/Applications/${APP_NAME}.app"
-  cp -R "$APP" /Applications/
-  echo "Installed /Applications/${APP_NAME}.app"
+  rm -rf "$DEST/${APP_NAME}.app"
+  cp -R "$APP" "$DEST/"
+  echo "Installed $DEST/${APP_NAME}.app"
 fi

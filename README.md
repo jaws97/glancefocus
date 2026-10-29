@@ -41,10 +41,15 @@ bash build.sh install
 ```
 
 That builds `build/GlanceFocus.app`, signs it for your Mac, and copies it to `/Applications`.
-Then open it:
+If your account can't write there, as on many work Macs, it goes to `~/Applications` instead. The
+last line of the output says which. Then open it, using that folder:
 
 ```bash
 open /Applications/GlanceFocus.app
+```
+
+```bash
+open ~/Applications/GlanceFocus.app
 ```
 
 An eye icon appears in the menu bar.
@@ -129,10 +134,10 @@ you look at a screen are far from that screen's saved numbers, calibrate again.
 
 ## Uninstall
 
-Quit it from the menu, then:
+Quit it from the menu, then delete it from whichever folder it was installed in:
 
 ```bash
-rm -rf /Applications/GlanceFocus.app
+rm -rf /Applications/GlanceFocus.app ~/Applications/GlanceFocus.app
 ```
 
 ```bash
