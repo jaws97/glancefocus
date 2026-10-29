@@ -1,0 +1,36 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          swift --version
+
+      - name: Build GlanceFocus.app
+        run: bash build.sh
+
+      - name: Check signature and size
+        run: |
+          codesign --verify --verbose build/GlanceFocus.app
+          du -sh build/GlanceFocus.app
+          ls -lh build/GlanceFocus.app/Contents/MacOS/GlanceFocus
+
+      # ditto keeps the executable bit, which a plain artifact upload would drop.
+      - name: Zip app
+        run: ditto -c -k --keepParent build/GlanceFocus.app build/GlanceFocus.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GlanceFocus
+          path: build/GlanceFocus.zip
