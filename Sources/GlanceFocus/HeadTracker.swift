@@ -18,7 +18,8 @@ final class HeadTracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate 
 
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "GlanceFocus.session")
-    private let videoQueue = DispatchQueue(label: "GlanceFocus.video")
+    // Drain temporary objects after every frame so memory stays flat over hours of running.
+    private let videoQueue = DispatchQueue(label: "GlanceFocus.video", autoreleaseFrequency: .workItem)
     private let faceRequest: VNDetectFaceRectanglesRequest = {
         let request = VNDetectFaceRectanglesRequest()
         request.revision = VNDetectFaceRectanglesRequestRevision3 // continuous yaw and pitch
