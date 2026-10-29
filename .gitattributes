@@ -1,0 +1,2 @@
+# The project is edited on Windows but built on macOS; keep Unix line endings so build.sh runs.
+* text=auto eol=lf
