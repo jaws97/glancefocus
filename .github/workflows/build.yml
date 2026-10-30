@@ -27,11 +27,16 @@ jobs:
           script -q /dev/null /bin/bash build.sh
           test -x build/GlanceFocus.app/Contents/MacOS/GlanceFocus
 
-      - name: Check signature and size
+      - name: Check signature, architecture and size
         run: |
           codesign --verify --verbose build/GlanceFocus.app
+          lipo -archs build/GlanceFocus.app/Contents/MacOS/GlanceFocus
           du -sh build/GlanceFocus.app
           ls -lh build/GlanceFocus.app/Contents/MacOS/GlanceFocus
+
+      # build.sh calls swiftc directly; keep Package.swift building too, for opening in Xcode.
+      - name: Swift Package Manager build
+        run: swift build -c release
 
       # ditto keeps the executable bit, which a plain artifact upload would drop.
       - name: Zip app

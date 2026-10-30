@@ -7,8 +7,13 @@ cd "$(dirname "$0")"
 
 APP_NAME="GlanceFocus"
 APP="build/${APP_NAME}.app"
+BIN="build/bin/${APP_NAME}"
 LOG="$(mktemp -t glancefocus-build.XXXXXX)"
 STEP_PID=""
+
+# Native code for this Mac, even when Terminal runs under Rosetta.
+ARCH="$(uname -m)"
+if [[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" == "1" ]]; then ARCH="arm64"; fi
 
 # ── Progress display ───────────────────────────────────────────────────────────────────────────
 # A spinner with a running timer in Terminal; plain lines in CI or when the output is piped.
@@ -70,17 +75,43 @@ run_step() {
   fi
 }
 
+# ── Developer tools ────────────────────────────────────────────────────────────────────────────
+# Only the Swift compiler is needed, from Apple's command line tools or Xcode. Check that it runs
+# before starting, so a missing or damaged install gets instructions instead of a compiler error.
+check_tools() {
+  if ! xcrun --sdk macosx --find swiftc >/dev/null 2>&1; then
+    printf '  %s✗ Apple’s command line tools are not installed%s\n\n' "$RED" "$RESET"
+    xcode-select --install >/dev/null 2>&1 || true
+    printf '  A window should ask to install them. Click Install and wait until it finishes\n'
+    printf '  (about 5–15 minutes), then run %sbash build.sh install%s again.\n' "$CYAN" "$RESET"
+    printf '  %sNo window? Run: xcode-select --install%s\n\n' "$DIM" "$RESET"
+    exit 1
+  fi
+  if ! xcrun --sdk macosx swiftc --version >"$LOG" 2>&1; then
+    printf '  %s✗ The Swift compiler in %s does not run%s\n\n' "$RED" "$(xcode-select -p 2>/dev/null)" "$RESET"
+    cat "$LOG"
+    printf '\n  The developer tools look damaged, which can happen after an interrupted update.\n'
+    printf '  Reinstall them, then run this again:\n'
+    printf '  %ssudo rm -rf /Library/Developer/CommandLineTools%s\n' "$CYAN" "$RESET"
+    printf '  %sxcode-select --install%s\n\n' "$CYAN" "$RESET"
+    exit 1
+  fi
+}
+
 # ── Steps ──────────────────────────────────────────────────────────────────────────────────────
+# Calls the compiler directly rather than through Swift Package Manager, which crashes on launch
+# when the command line tools are half-updated. The flags match `swift build -c release`.
 compile() {
-  swift build -c release
+  mkdir -p "$(dirname "$BIN")"
+  xcrun --sdk macosx swiftc -O -whole-module-optimization -parse-as-library -swift-version 5 \
+    -module-name "$APP_NAME" -target "${ARCH}-apple-macos13.0" \
+    Sources/GlanceFocus/*.swift -o "$BIN"
 }
 
 package() {
-  local bin_dir
-  bin_dir="$(swift build -c release --show-bin-path)"
   rm -rf "$APP"
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-  cp "$bin_dir/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
+  cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
   cp Resources/Info.plist "$APP/Contents/Info.plist"
 }
 
@@ -98,6 +129,7 @@ install_app() {
 
 # ── Main ───────────────────────────────────────────────────────────────────────────────────────
 printf '\n  %sGlanceFocus%s\n\n' "$BOLD" "$RESET"
+check_tools
 run_step "Compiling" compile
 run_step "Packaging the app" package
 run_step "Signing" sign

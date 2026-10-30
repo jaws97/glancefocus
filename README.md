@@ -27,12 +27,9 @@ you're looking at.
 
 ## Build and install (on the Mac)
 
-You need macOS 13 Ventura or later and Apple's command line tools. If you don't have Xcode, run
-this once to install them:
-
-```bash
-xcode-select --install
-```
+You need macOS 13 Ventura or later and Apple's command line tools (Xcode includes them). If
+they aren't installed, the build script asks macOS to install them: click Install, wait until it
+finishes (about 5–15 minutes), and run the script again.
 
 Copy this folder to the Mac, open Terminal in it, and run:
 
@@ -125,6 +122,18 @@ you look at a screen are far from that screen's saved numbers, calibrate again.
   Good lighting on your face helps. If your screens are close together, try a longer Switch Delay.
 - **The lid is closed (clamshell mode).** The built-in camera is off then. Plug in a webcam and
   choose it under Camera. Choosing a camera starts a new calibration.
+- **The build says the developer tools look damaged.** This can happen when an update to the
+  command line tools is interrupted. Reinstall them (this needs an admin password), then build
+  again:
+
+  ```bash
+  sudo rm -rf /Library/Developer/CommandLineTools
+  ```
+
+  ```bash
+  xcode-select --install
+  ```
+
 - **Focus stopped working after rebuilding.** Each build gets a new signature, so macOS forgets
   the Accessibility permission. Reset it and allow it again:
 
